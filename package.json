@@ -1,0 +1,42 @@
+{
+  "name": "@ffgflash/badger",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "build:docs": "typedoc --options typedoc.docs.json"
+  },
+  "keywords": [],
+  "author": "Drake Taylor",
+  "license": "MIT",
+  "dependencies": {
+    "debug": "^4.3.4",
+    "eventemitter3": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/debug": "^4.1.12",
+    "@types/node": "^20.11.26",
+    "ts-node": "^10.9.2",
+    "tsup": "^8.0.2",
+    "typedoc": "^0.25.12",
+    "typedoc-material-theme": "^1.0.2",
+    "typescript": "^5.4.2"
+  },
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FFGFlash/badger.git"
+  },
+  "bugs": {
+    "url": "https://github.com/FFGFlash/badger/issues"
+  },
+  "homepage": "https://github.com/FFGFlash/badger#readme",
+  "description": ""
+}

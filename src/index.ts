@@ -1,16 +1,7 @@
+import debug from 'debug'
 import EventEmitter from 'eventemitter3'
 
-export enum Position {
-  TOP = 'top',
-  RIGHT = 'right',
-  BOTTOM = 'bottom',
-  LEFT = 'left',
-  TOP_LEFT = 'topLeft',
-  TOP_RIGHT = 'topRight',
-  BOTTOM_RIGHT = 'bottomRight',
-  BOTTOM_LEFT = 'bottomLeft',
-  CENTER = 'center',
-}
+const log = debug('badger')
 
 export interface BadgerOptions {
   /** The url to the image we want to draw the badge on. */
@@ -18,7 +9,7 @@ export interface BadgerOptions {
   /** A value between 0 and 1 representing the size of the badge. */
   size?: number
   /** Where the badge should be positioned. */
-  position?: Position
+  position?: keyof (typeof Badger)['Offsets']
   /** The border radius for the badge (pill). */
   radius?: number
   /** The background color for the badge (pill). */
@@ -42,7 +33,7 @@ export interface BadgerEvents {
 export default class Badger extends EventEmitter<BadgerEvents> {
   static DefaultOptions: Required<BadgerOptions> = {
     size: 0.6,
-    position: Position.TOP_RIGHT,
+    position: 'topRight',
     src: '',
     radius: 8,
     backgroundColor: '#ef4444' as string | CanvasGradient | CanvasPattern,
@@ -52,21 +43,23 @@ export default class Badger extends EventEmitter<BadgerEvents> {
   #options = Badger.DefaultOptions
   #canvas = document.createElement('canvas')
   #ctx = this.#canvas.getContext('2d')
-  #offsets = {
-    [Position.TOP]: { x: 0, y: 0 },
-    [Position.RIGHT]: { x: 0, y: 0 },
-    [Position.BOTTOM]: { x: 0, y: 0 },
-    [Position.LEFT]: { x: 0, y: 0 },
-    [Position.TOP_LEFT]: { x: 0, y: 0 },
-    [Position.TOP_RIGHT]: { x: 0, y: 0 },
-    [Position.BOTTOM_RIGHT]: { x: 0, y: 0 },
-    [Position.BOTTOM_LEFT]: { x: 0, y: 0 },
-    [Position.CENTER]: { x: 0, y: 0 },
-  }
+  #offset = { x: 0, y: 0 }
   #value = 0
   #size = 0
   #image = new Image()
   #url!: string
+
+  static Offsets = {
+    top: { x: 0.5, y: 0 },
+    right: { x: 1, y: 0.5 },
+    bottom: { x: 0.5, y: 1 },
+    left: { x: 0, y: 0.5 },
+    topLeft: { x: 0, y: 0 },
+    topRight: { x: 1, y: 0 },
+    bottomRight: { x: 1, y: 1 },
+    bottomLeft: { x: 0, y: 1 },
+    center: { x: 0.5, y: 0.5 },
+  }
 
   constructor(options?: BadgerOptions) {
     super()
@@ -77,6 +70,7 @@ export default class Badger extends EventEmitter<BadgerEvents> {
     this.backgroundColor = options?.backgroundColor
     this.color = options?.color
     this.#image.addEventListener('load', () => {
+      log('Source Loaded')
       this.setup()
       this.update()
     })
@@ -88,30 +82,17 @@ export default class Badger extends EventEmitter<BadgerEvents> {
     const minSize = Math.min(naturalWidth, naturalHeight)
     this.#size = minSize * this.size
     const right = this.#image.naturalWidth - this.#size
-    const centerX = right / 2
     const bottom = this.#image.naturalHeight - this.#size
-    const centerY = bottom / 2
-    this.#offsets = {
-      [Position.TOP]: { x: centerX, y: 0 },
-      [Position.RIGHT]: { x: right, y: centerY },
-      [Position.BOTTOM]: { x: centerX, y: bottom },
-      [Position.LEFT]: { x: 0, y: centerY },
-
-      [Position.TOP_LEFT]: { x: 0, y: 0 },
-      [Position.TOP_RIGHT]: { x: right, y: 0 },
-      [Position.BOTTOM_RIGHT]: { x: right, y: bottom },
-      [Position.BOTTOM_LEFT]: { x: 0, y: bottom },
-
-      [Position.CENTER]: { x: centerX, y: centerY },
-    }
+    const offset = Badger.Offsets[this.position]
+    this.#offset = { x: offset.x * right, y: offset.y * bottom }
     this.#canvas.width = this.#image.naturalWidth
     this.#canvas.height = this.#image.naturalHeight
-    console.groupCollapsed('Badger Setup')
-    console.log('Natural Size: %ix%i', naturalWidth, naturalHeight)
-    console.log('Offsets: %o', this.#offsets)
-    console.log('MinImageSize: %i', minSize)
-    console.log('Size: %f', this.#size)
-    console.groupEnd()
+    log(
+      'Badger Setup\n- Size: %f\n- Offset: %f, %f',
+      this.#size,
+      this.#offset.x,
+      this.#offset.y
+    )
   }
 
   update() {
@@ -122,25 +103,23 @@ export default class Badger extends EventEmitter<BadgerEvents> {
     this.#ctx.drawImage(this.#image, 0, 0, naturalWidth, naturalHeight)
     if (this.#value) {
       const radius = this.radius
-      const offset = this.#offsets[this.position]
-      const left = offset.x
-      const top = offset.y
-      const right = left + this.#size
-      const bottom = top + this.#size
+      const { x, y } = this.#offset
+      const right = x + this.#size
+      const bottom = y + this.#size
       const margin = (this.#size * 0.18) / 2
-      const centerX = left + this.#size / 2
-      const centerY = top + this.#size / 2
+      const centerX = x + this.#size / 2
+      const centerY = y + this.#size / 2
       const fontSize = this.#size * 0.7
       //* Draw badge background
       this.#ctx.beginPath()
-      this.#ctx.moveTo(right - radius, top)
-      this.#ctx.quadraticCurveTo(right, top, right, top + radius)
+      this.#ctx.moveTo(right - radius, y)
+      this.#ctx.quadraticCurveTo(right, y, right, y + radius)
       this.#ctx.lineTo(right, bottom - radius)
       this.#ctx.quadraticCurveTo(right, bottom, right - radius, bottom)
-      this.#ctx.lineTo(left + radius, bottom)
-      this.#ctx.quadraticCurveTo(left, bottom, left, bottom - radius)
-      this.#ctx.lineTo(left, top + radius)
-      this.#ctx.quadraticCurveTo(left, top, left + radius, top)
+      this.#ctx.lineTo(x + radius, bottom)
+      this.#ctx.quadraticCurveTo(x, bottom, x, bottom - radius)
+      this.#ctx.lineTo(x, y + radius)
+      this.#ctx.quadraticCurveTo(x, y, x + radius, y)
       this.#ctx.fillStyle = this.backgroundColor
       this.#ctx.fill()
       this.#ctx.closePath()
@@ -237,14 +216,16 @@ export default class Badger extends EventEmitter<BadgerEvents> {
   }
 
   /** Where the badge should be positioned. */
-  get position(): Position {
+  get position(): keyof (typeof Badger)['Offsets'] {
     return this.#options.position
   }
 
-  set position(value: Position | undefined) {
+  set position(value: keyof (typeof Badger)['Offsets'] | undefined) {
     value = value ?? Badger.DefaultOptions.position
     if (value === this.position) return
     this.#options.position = value
+    this.setup()
+    this.update()
   }
 
   /** The data url for the most recent draw call. */
